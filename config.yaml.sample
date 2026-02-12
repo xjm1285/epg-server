@@ -1,0 +1,14 @@
+# 服务相关配置
+server:
+  listen_port: 8080
+  cron_schedule: "0 8 * * *"
+  timezone: "Asia/Shanghai"
+
+# JWT相关配置
+cache:
+  epg_url: "http://epg.51zmt.top:8000/e.xml.gz"
+  download_dir: "./epg_download"
+  file: "./epg_cache.json"
+
+log:
+  level: info

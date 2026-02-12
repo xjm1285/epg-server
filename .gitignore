@@ -1,0 +1,6 @@
+/main
+/epg_cache.json
+/epg_download/
+/__debug*
+/epg-server
+/config.yaml
