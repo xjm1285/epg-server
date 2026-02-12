@@ -1,0 +1,121 @@
+name: Build and Release
+
+on:
+  push:
+    tags:
+      - 'v*'
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+jobs:
+  # 第一阶段：多平台并行编译
+  build:
+    runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        goos: [linux, windows]
+        goarch: [amd64, arm64]
+        exclude:
+          - goos: windows
+            goarch: arm64
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Set up Go
+        uses: actions/setup-go@v5
+        with:
+          go-version-file: 'go.mod'
+          cache: true
+
+      - name: Extract version
+        id: extract_version
+        run: |
+          if [[ "${{ github.ref }}" == refs/tags/* ]]; then
+            VERSION="${GITHUB_REF#refs/tags/}"
+          else
+            VERSION="dev-$(git rev-parse --short HEAD)"
+          fi
+          echo "VERSION=$VERSION" >> $GITHUB_ENV
+          BIN_NAME="epg-server_${VERSION}_${{ matrix.goos }}_${{ matrix.goarch }}"
+          if [[ "${{ matrix.goos }}" == "windows" ]]; then
+            BIN_NAME+=".exe"
+          fi
+          echo "BIN_NAME=$BIN_NAME" >> $GITHUB_ENV
+
+      - name: Build Go binary
+        run: |
+          GOOS=${{ matrix.goos }}
+          GOARCH=${{ matrix.goarch }}
+          CGO_ENABLED=0
+          go build -ldflags "-X main.version=${{ env.VERSION }} -s -w" -o "${{ env.BIN_NAME }}" ./...
+          if [[ "${{ matrix.goos }}" != "windows" ]]; then
+            chmod +x "${{ env.BIN_NAME }}"
+          fi
+
+      - name: Package binary
+        run: |
+          if [[ "${{ matrix.goos }}" == "windows" ]]; then
+            zip "${{ env.BIN_NAME }}.zip" "${{ env.BIN_NAME }}"
+            echo "PACKAGE_NAME=${{ env.BIN_NAME }}.zip" >> $GITHUB_ENV
+          else
+            tar -czf "${{ env.BIN_NAME }}.tar.gz" "${{ env.BIN_NAME }}"
+            echo "PACKAGE_NAME=${{ env.BIN_NAME }}.tar.gz" >> $GITHUB_ENV
+          fi
+
+      # 关键修改：上传产物到Action缓存，供发布阶段使用
+      - name: Upload artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: build-artifacts-${{ matrix.goos }}-${{ matrix.goarch }}
+          path: ${{ env.PACKAGE_NAME }}
+          retention-days: 1  # 缓存仅保留1天，节省空间
+
+  # 第二阶段：统一发布（等待所有编译任务完成后执行）
+  release:
+    needs: build  # 依赖build任务全部完成
+    runs-on: ubuntu-latest
+    if: startsWith(github.ref, 'refs/tags/')  # 仅标签触发时发布
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Extract version
+        run: |
+          VERSION="${GITHUB_REF#refs/tags/}"
+          echo "VERSION=$VERSION" >> $GITHUB_ENV
+
+      # 下载所有编译产物
+      - name: Download all artifacts
+        uses: actions/download-artifact@v4
+        with:
+          path: ./artifacts  # 所有产物下载到artifacts目录
+          merge-multiple: true  # 合并所有平台的产物到同一目录
+
+      # 列出所有产物，确认下载成功
+      - name: List artifacts
+        run: |
+          ls -la ./artifacts
+
+      # 统一发布所有产物到Release
+      - name: Create and upload release
+        uses: softprops/action-gh-release@v2
+        with:
+          name: Release ${{ env.VERSION }}
+          body: |
+            ## ${{ env.VERSION }} Release
+            - 自动编译于 ${{ github.sha }}
+            - 支持平台：Linux/amd64、Linux/arm64、Windows/amd64
+          files: ./artifacts/*  # 上传所有下载的产物
+          prerelease: false
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
