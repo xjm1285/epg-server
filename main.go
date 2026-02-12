@@ -24,7 +24,7 @@ import (
 type Config struct {
 	Server struct {
 		ListenPort   int    `yaml:"listen_port"`
-		cronSchedule string `yaml:"cron_schedule"`
+		CronSchedule string `yaml:"cron_schedule"`
 		TimeZone     string `yaml:"timezone"`
 	} `yaml:"server"`
 
@@ -161,8 +161,8 @@ func setDefaultConfig() {
 	if config.Server.ListenPort == 0 {
 		config.Server.ListenPort = 8090
 	}
-	if config.Server.cronSchedule == "" {
-		config.Server.cronSchedule = "0 0 * * *"
+	if config.Server.CronSchedule == "" {
+		config.Server.CronSchedule = "0 0 * * *"
 	}
 	if config.Server.TimeZone == "" {
 		config.Server.TimeZone = "Asia/Shanghai"
@@ -220,7 +220,7 @@ func main() {
 
 	// 启动定时任务
 	c := cron.New(cron.WithLocation(loc))
-	_, err = c.AddFunc(config.Server.cronSchedule, func() {
+	_, err = c.AddFunc(config.Server.CronSchedule, func() {
 		logInfo("开始执行每日EPG更新任务")
 		if err := downloadAndParseEPG(); err != nil {
 			logError("定时任务执行失败: %v", err)
