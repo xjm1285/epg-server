@@ -40,7 +40,7 @@ type Config struct {
 }
 
 const (
-	configFile    = "config.yaml" // 命令行指定的配置文件路径
+	configFile    = "config.yaml" // 指定的配置文件路径
 	LogLevelDebug = "debug"
 	LogLevelInfo  = "info"
 	LogLevelWarn  = "warn"
@@ -75,10 +75,11 @@ type DisplayName struct {
 }
 
 type Programme struct {
-	Start   string `xml:"start,attr"`
-	Stop    string `xml:"stop,attr"`
-	Channel string `xml:"channel,attr"`
-	Title   string `xml:"title"`
+	Start       string `xml:"start,attr"`
+	Stop        string `xml:"stop,attr"`
+	Channel     string `xml:"channel,attr"`
+	Title       string `xml:"title"`
+	Description string `xml:"desc"`
 }
 
 // 内存缓存结构
@@ -89,9 +90,10 @@ type EPGCache struct {
 }
 
 type ProgramItem struct {
-	Start string `json:"start"`
-	End   string `json:"end"`
-	Title string `json:"title"`
+	Start       string `json:"start"`
+	End         string `json:"end"`
+	Title       string `json:"title"`
+	Description string `json:"desc"`
 }
 
 // 接口返回结构
@@ -424,9 +426,10 @@ func buildEPGCache(tv *TV) error {
 
 		// 构建节目项
 		item := ProgramItem{
-			Start: startStr,
-			End:   stopStr,
-			Title: prog.Title,
+			Start:       startStr,
+			End:         stopStr,
+			Title:       prog.Title,
+			Description: prog.Description,
 		}
 
 		// 初始化层级结构
