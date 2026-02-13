@@ -6,7 +6,7 @@ server:
 
 # JWT相关配置
 cache:
-  epg_url: "http://epg.51zmt.top:8000/e.xml.gz"
+  epg_url: "http://epg.51zmt.top:8000/e1.xml.gz"
   download_dir: "./epg_download"
   file: "./epg_cache.json"
 
